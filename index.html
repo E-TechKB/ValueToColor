@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抵抗値→カラーコード入力ゲーム</title>
+
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            user-select: none;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 30px;
+            align-items: flex-start;
+        }
+
+        #game-wrapper {
+            position: relative;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #start-screen {
+            text-align: center;
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            width: 370px;
+        }
+
+        #start-screen h1 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        #start-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #start-button:hover {
+            background-color: #0056b3;
+        }
+
+        #game-container {
+            background-color: #ffffff;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            width: 370px;
+            position: relative;
+        }
+
+        #countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.95);
+            z-index: 1001;
+            justify-content: center;
+            align-items: center;
+            font-size: 10rem;
+            font-weight: bold;
+            color: #007bff;
+            border-radius: 15px;
+        }
+
+        #countdown-overlay:not(.hidden) {
+            display: flex;
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #333;
+            font-size: 1.4em;
+        }
+
+        #info-panel {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+            color: #555;
+        }
+
+        #problem-value-display {
+            background-color: #e9ecef;
+            border-radius: 8px;
+            padding: 2px;
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        #answer-slots {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 10px;
+            height: 50px;
+        }
+
+        .slot {
+            width: 60px;
+            height: 100%;
+            background-color: #fff;
+            border: 2px dashed #ccc;
+            border-radius: 5px;
+            transition: all 0.2s;
+        }
+        
+        .slot.active-slot {
+            border-color: #007bff;
+            border-style: solid;
+            animation: blink 1.2s step-end infinite;
+        }
+        
+        #slot3 {
+            margin-right: 15px;
+        }
+        
+        .slot.fixed-band {
+            background-color: #ffd700;
+            border-color: #e6c60d;
+            border-style: solid;
+        }
+
+        @keyframes blink {
+            50% {
+                border-color: #007bff;
+                background-color: #eef7ff;
+            }
+            100% {
+                border-color: #ccc;
+                background-color: #fff;
+            }
+        }
+
+        #feedback {
+            height: 25px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+        
+        .correct { color: #28a745; }
+        .incorrect { color: #dc3545; }
+
+        /* ★★★★★ ここを修正しました ★★★★★ */
+        #color-palette {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .color-btn {
+            height: 48px;
+            border-radius: 8px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .color-btn:active {
+            transform: scale(0.95);
+        }
+
+        .color-btn.white, .color-btn.gold, .color-btn.silver {
+            border-color: #ddd;
+        }
+
+        #clear-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2em;
+            border-radius: 8px;
+            border: none;
+            background-color: #ffc107;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #game-over-modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        #game-over-modal:not(.hidden) {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        #restart-button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+
+        #sidebar {
+            width: 280px;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .sidebar-section {
+            margin-bottom: 25px;
+        }
+
+        .sidebar-section h2 {
+            font-size: 1.2em;
+            color: #333;
+            margin-top: 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        #today-best-score-wrapper {
+            text-align: center;
+        }
+
+        .score-display {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0;
+        }
+
+        #ranking-list {
+            list-style-type: none;
+            padding-left: 0;
+            margin: 0;
+        }
+
+        #ranking-list li {
+            font-size: 1.1em;
+            padding: 8px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #ranking-list li:first-child { font-weight: bold; color: #d9534f; }
+        #ranking-list li:nth-child(2) { font-weight: bold; color: #f0ad4e; }
+        #ranking-list li:nth-child(3) { font-weight: bold; color: #5cb85c; }
+
+        .timestamp {
+            font-size: 0.8em;
+            color: #888;
+            font-weight: normal;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .main-container { flex-direction: column; align-items: center; gap: 20px; }
+            #game-wrapper, #start-screen, #game-container, #sidebar { width: 100%; max-width: 420px; box-sizing: border-box; }
+            #sidebar { margin-top: 20px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <div id="game-wrapper">
+            <div id="start-screen">
+                <h1>抵抗値→カラーコード入力ゲーム</h1>
+                <button id="start-button">ゲームスタート</button>
+            </div>
+
+            <div id="game-container" class="hidden">
+                <div id="countdown-overlay" class="hidden"></div>
+                <div id="info-panel">
+                    <div id="score-container">スコア: <span id="score">0</span></div>
+                    <div id="timer-container">残り時間: <span id="timer">60</span>秒</div>
+                </div>
+                
+                <div id="problem-value-display">10kΩ</div>
+                
+                <div id="answer-slots">
+                    <div class="slot" id="slot1"></div>
+                    <div class="slot" id="slot2"></div>
+                    <div class="slot" id="slot3"></div>
+                    <div class="slot fixed-band" id="slot4"></div>
+                </div>
+
+                <div id="feedback"></div>
+
+                <div id="color-palette"></div>
+
+                <button id="clear-button">クリア</button>
+            </div>
+
+            <div id="game-over-modal" class="hidden">
+                <div class="modal-content">
+                    <h2>ゲームオーバー！</h2>
+                    <p>最終スコア: <span id="final-score"></span></p>
+                    <button id="restart-button">もう一度プレイ</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <div class="sidebar-section">
+                <h2>🏆 本日の最高得点</h2>
+                <div id="today-best-score-wrapper">
+                    <p id="today-best-score" class="score-display">まだ記録がありません</p>
+                </div>
+            </div>
+            <div class="sidebar-section">
+                <h2>📈 今日のランキング</h2>
+                <ol id="ranking-list">
+                    <li>まだ記録がありません</li>
+                </ol>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM Elements
+            const startScreenEl = document.getElementById('start-screen');
+            const startButton = document.getElementById('start-button');
+            const gameContainerEl = document.getElementById('game-container');
+            const countdownOverlayEl = document.getElementById('countdown-overlay');
+            const scoreEl = document.getElementById('score');
+            const timerEl = document.getElementById('timer');
+            const problemValueDisplayEl = document.getElementById('problem-value-display');
+            const answerSlotsEl = document.getElementById('answer-slots');
+            const feedbackEl = document.getElementById('feedback');
+            const colorPaletteEl = document.getElementById('color-palette');
+            const clearButton = document.getElementById('clear-button');
+            const gameOverModalEl = document.getElementById('game-over-modal');
+            const finalScoreEl = document.getElementById('final-score');
+            const restartButton = document.getElementById('restart-button');
+            const todayBestScoreWrapperEl = document.getElementById('today-best-score-wrapper');
+            const todayBestScoreEl = document.getElementById('today-best-score');
+            const rankingListEl = document.getElementById('ranking-list');
+            const guessSlots = document.querySelectorAll('#answer-slots .slot:not(.fixed-band)');
+
+            // Game Constants
+            const TODAY_RANKING_KEY = 'resistorValueGameTodayRanking';
+            const TODAY_BEST_KEY = 'resistorValueGameTodayBest';
+            const GAME_DURATION = 60;
+            const COUNTDOWN_SECONDS = 3;
+
+            const COLORS = {
+                'black': { value: 0, color: '#000000' },
+                'brown': { value: 1, color: '#a52a2a' },
+                'red': { value: 2, color: '#ff0000' },
+                'orange': { value: 3, color: '#ffa500' },
+                'yellow': { value: 4, color: '#ffff00' },
+                'green': { value: 5, color: '#008000' },
+                'blue': { value: 6, color: '#0000ff' },
+                'violet': { value: 7, color: '#ee82ee' },
+                'grey': { value: 8, color: '#808080' },
+                'white': { value: 9, color: '#ffffff' },
+                'gold': { color: '#ffd700' },
+                'silver': { color: '#c0c0c0' }
+            };
+            const MULTIPLIER_COLORS = {
+                'gold': { multiplier: 0.1 }, 'silver': { multiplier: 0.01 },
+                'black': { multiplier: 1 }, 'brown': { multiplier: 10 },
+                'red': { multiplier: 100 }, 'orange': { multiplier: 1000 },
+                'yellow': { multiplier: 10000 }, 'green': { multiplier: 100000 },
+                'blue': { multiplier: 1000000 }
+            };
+            const E24_VALUES = [
+                1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0,
+                3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1
+            ];
+            
+            // ★★★★★ ここを修正しました ★★★★★
+            const PALETTE_ORDER = [
+                'brown', 'red', 'orange',  // 1, 2, 3
+                'yellow', 'green', 'blue', // 4, 5, 6
+                'violet', 'grey', 'white', // 7, 8, 9
+                'gold', 'black', 'silver'  // *, 0, # の行に対応
+            ];
+
+            // Game State
+            let score, timeLeft, timerInterval, currentProblem;
+            let playerSequence = [];
+            let isGameActive = false;
+            let feedbackTimeoutId;
+
+            function createColorPalette() {
+                colorPaletteEl.innerHTML = '';
+                PALETTE_ORDER.forEach(colorName => {
+                    const btn = document.createElement('button');
+                    btn.className = `color-btn ${colorName}`;
+                    btn.style.backgroundColor = COLORS[colorName].color;
+                    btn.dataset.color = colorName;
+                    colorPaletteEl.appendChild(btn);
+                });
+            }
+
+            function generateProblem() {
+                const baseValue = E24_VALUES[Math.floor(Math.random() * E24_VALUES.length)];
+                const multiplierPower = Math.floor(Math.random() * 7);
+                const multiplier = Math.pow(10, multiplierPower);
+                const value = baseValue * multiplier;
+                const cleanValue = parseFloat(value.toPrecision(12));
+                let significantDigits = Math.round(baseValue * 10);
+                let bandMultiplier = multiplier / 10;
+                const digit1 = Math.floor(significantDigits / 10);
+                const digit2 = significantDigits % 10;
+                const color1 = Object.keys(COLORS).find(name => COLORS[name].value === digit1);
+                const color2 = Object.keys(COLORS).find(name => COLORS[name].value === digit2);
+                const color3 = Object.keys(MULTIPLIER_COLORS).find(name => Math.abs(MULTIPLIER_COLORS[name].multiplier - bandMultiplier) < 0.001);
+                return { value: cleanValue, colors: [color1, color2, color3] };
+            }
+            
+            function nextProblem() {
+                clearTimeout(feedbackTimeoutId);
+                isGameActive = true;
+                currentProblem = generateProblem();
+                playerSequence = [];
+                problemValueDisplayEl.textContent = formatResistance(currentProblem.value) + 'Ω';
+                feedbackEl.textContent = '';
+                updateAnswerSlots();
+            }
+
+            function updateAnswerSlots() {
+                guessSlots.forEach((slot, index) => {
+                    const colorName = playerSequence[index];
+                    slot.classList.remove('active-slot');
+                    if (colorName) {
+                        slot.style.backgroundColor = COLORS[colorName].color;
+                        slot.style.borderStyle = 'solid';
+                    } else {
+                        slot.style.backgroundColor = '#fff';
+                        slot.style.borderStyle = 'dashed';
+                    }
+                });
+                const nextSlotIndex = playerSequence.length;
+                if (isGameActive && nextSlotIndex < 3) {
+                    guessSlots[nextSlotIndex].classList.add('active-slot');
+                }
+            }
+
+            function checkAnswer() {
+                isGameActive = false;
+                const isCorrect = JSON.stringify(playerSequence) === JSON.stringify(currentProblem.colors);
+                if (isCorrect) {
+                    score += 10;
+                    feedbackEl.textContent = "正解！ 🎉";
+                    feedbackEl.className = 'correct';
+                } else {
+                    feedbackEl.textContent = `残念！`;
+                    feedbackEl.className = 'incorrect';
+                    playerSequence = currentProblem.colors;
+                    updateAnswerSlots();
+                }
+                scoreEl.textContent = score;
+                feedbackTimeoutId = setTimeout(nextProblem, 1500);
+            }
+
+            function clearAnswer() {
+                if (!isGameActive || playerSequence.length === 0) return;
+                playerSequence = [];
+                updateAnswerSlots();
+            }
+
+            function handleColorClick(e) {
+                if (!isGameActive || !e.target.matches('.color-btn') || playerSequence.length >= 3) return;
+                const color = e.target.dataset.color;
+                playerSequence.push(color);
+                updateAnswerSlots();
+                if (playerSequence.length === 3) {
+                    checkAnswer();
+                }
+            }
+            
+            function startCountdown() {
+                startScreenEl.classList.add('hidden');
+                gameOverModalEl.classList.add('hidden');
+                gameContainerEl.classList.remove('hidden');
+                countdownOverlayEl.classList.remove('hidden');
+                let count = COUNTDOWN_SECONDS;
+                countdownOverlayEl.textContent = count;
+                const countdownInterval = setInterval(() => {
+                    count--;
+                    if (count > 0) {
+                        countdownOverlayEl.textContent = count;
+                    } else {
+                        clearInterval(countdownInterval);
+                        countdownOverlayEl.classList.add('hidden');
+                        setTimeout(runGame, 10); 
+                    }
+                }, 1000);
+            }
+            
+            function runGame() {
+                score = 0;
+                timeLeft = GAME_DURATION;
+                if(timerInterval) clearInterval(timerInterval);
+                scoreEl.textContent = score;
+                timerEl.textContent = timeLeft;
+                nextProblem();
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    timerEl.textContent = timeLeft;
+                    if (timeLeft <= 0) endGame();
+                }, 1000);
+            }
+
+            function endGame() {
+                isGameActive = false;
+                clearInterval(timerInterval);
+                timerInterval = null;
+                clearTimeout(feedbackTimeoutId);
+                timerEl.textContent = 0;
+                finalScoreEl.innerHTML = `${score} 点 <span class="timestamp">(${formatTimestamp(Date.now())})</span>`;
+                gameOverModalEl.classList.remove('hidden');
+                saveScores(score);
+                updateSidebar();
+            }
+
+            function formatResistance(value) {
+                if (value >= 1000000) return String(value / 1000000) + 'M';
+                if (value >= 1000) return String(value / 1000) + 'k';
+                return String(value);
+            }
+            function formatTimestamp(timestamp) {
+                if (!timestamp) return '';
+                const date = new Date(timestamp);
+                const month = date.getMonth() + 1;
+                const day = date.getDate();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                return `${month}/${day} ${hours}:${minutes}`;
+            }
+            function getTodayDateString() {
+                const today = new Date();
+                const year = today.getFullYear();
+                const month = String(today.getMonth() + 1).padStart(2, '0');
+                const day = String(today.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            function saveScores(newScore) {
+                if (newScore <= 0) return;
+                const timestamp = Date.now();
+                const today = getTodayDateString();
+                const scoreEntry = { score: newScore, ts: timestamp };
+                let todayRankingData = JSON.parse(localStorage.getItem(TODAY_RANKING_KEY)) || { date: '', scores: [] };
+                if (todayRankingData.date !== today) {
+                    todayRankingData = { date: today, scores: [] };
+                }
+                todayRankingData.scores.push(scoreEntry);
+                todayRankingData.scores.sort((a, b) => b.score - a.score);
+                todayRankingData.scores = todayRankingData.scores.slice(0, 5);
+                localStorage.setItem(TODAY_RANKING_KEY, JSON.stringify(todayRankingData));
+                const todayBestData = JSON.parse(localStorage.getItem(TODAY_BEST_KEY)) || { score: 0, date: '', ts: 0 };
+                if (todayBestData.date !== today || newScore > todayBestData.score) {
+                    localStorage.setItem(TODAY_BEST_KEY, JSON.stringify({ score: newScore, date: today, ts: timestamp }));
+                }
+            }
+            function updateSidebar() {
+                const today = getTodayDateString();
+                const todayRankingData = JSON.parse(localStorage.getItem(TODAY_RANKING_KEY)) || { date: '', scores: [] };
+                rankingListEl.innerHTML = ''; 
+                if (todayRankingData.date === today && todayRankingData.scores.length > 0) {
+                    todayRankingData.scores.forEach((entry, index) => {
+                        const li = document.createElement('li');
+                        const scoreSpan = document.createElement('span');
+                        const timeSpan = document.createElement('span');
+                        if (index === 0) scoreSpan.innerHTML = `🥇 ${entry.score} 点`;
+                        else if (index === 1) scoreSpan.innerHTML = `🥈 ${entry.score} 点`;
+                        else if (index === 2) scoreSpan.innerHTML = `🥉 ${entry.score} 点`;
+                        else scoreSpan.innerHTML = `${"&nbsp;".repeat(4)} ${entry.score} 点`;
+                        timeSpan.className = 'timestamp';
+                        timeSpan.textContent = formatTimestamp(entry.ts);
+                        li.appendChild(scoreSpan);
+                        li.appendChild(timeSpan);
+                        rankingListEl.appendChild(li);
+                    });
+                } else {
+                    rankingListEl.innerHTML = '<li>まだ記録がありません</li>';
+                }
+                const todayBestData = JSON.parse(localStorage.getItem(TODAY_BEST_KEY)) || { score: 0, date: '', ts: 0 };
+                todayBestScoreWrapperEl.innerHTML = ''; 
+                if (todayBestData.date === today && todayBestData.score > 0) {
+                    todayBestScoreEl.textContent = `${todayBestData.score} 点`;
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'timestamp';
+                    timeSpan.textContent = `(${formatTimestamp(todayBestData.ts)})`;
+                    todayBestScoreWrapperEl.appendChild(todayBestScoreEl);
+                    todayBestScoreWrapperEl.appendChild(timeSpan);
+                } else {
+                    todayBestScoreEl.textContent = 'まだ記録がありません';
+                    todayBestScoreWrapperEl.appendChild(todayBestScoreEl);
+                }
+            }
+            
+            // --- Event Listeners & Initial setup ---
+            startButton.addEventListener('click', startCountdown);
+            restartButton.addEventListener('click', startCountdown);
+            colorPaletteEl.addEventListener('click', handleColorClick);
+            clearButton.addEventListener('click', clearAnswer);
+            
+            createColorPalette();
+            updateSidebar();
+        });
+    </script>
+</body>
+</html>
